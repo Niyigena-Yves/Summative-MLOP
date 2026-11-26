@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Video demo (YouTube)** | _add link here_ |
-| **Live app (cloud)** | _add deployed URL here_ (UI at `/`, Swagger API docs at `/docs`) |
+| **Live app (Azure)** | https://bean-leaf-doctor.orangehill-b7ca103b.southafricanorth.azurecontainerapps.io (API docs: [https://bean-leaf-doctor.orangehill-b7ca103b.southafricanorth.azurecontainerapps.io/docs](https://bean-leaf-doctor.orangehill-b7ca103b.southafricanorth.azurecontainerapps.io/docs)) |
 | **GitHub** | https://github.com/Niyigena-Yves/Summative-MLOP |
 
 ## Project description
@@ -81,7 +81,9 @@ Same test for each setup: **50 concurrent users** for 60 s, each sending a rando
 
 ![Scaling results](locust/results/scaling.png)
 
-**Interpretation:** with 1 container the model is saturated: requests queue and the average response time reaches about 3.1 s. Adding containers scales throughput almost linearly (10 → 21 → 29 req/s), cuts the average latency by about 6× (3.1 s → 0.53 s) and the p95 latency by about 5×, with **zero failed requests** in every setup. A single inference takes about 80–100 ms, so the rest of the latency at 1 container is queueing time. Raw CSV files are in [`locust/results/`](locust/results/).
+**In production (Azure Container Apps, 1 replica, 2 vCPU / 4 GB, South Africa North):** 30 concurrent users for 45 s sent 324 `/predict` requests with **0 failures**: average 2,446 ms, median 2,500 ms, p95 3,100 ms, 7.55 req/s. This includes the internet round trip from Kigali to the data centre. Raw data: `locust/results/azure_1replica_stats.csv`.
+
+**Interpretation (local Docker tests):** with 1 container the model is saturated: requests queue and the average response time reaches about 3.1 s. Adding containers scales throughput almost linearly (10 → 21 → 29 req/s), cuts the average latency by about 6× (3.1 s → 0.53 s) and the p95 latency by about 5×, with **zero failed requests** in every setup. A single inference takes about 80–100 ms, so the rest of the latency at 1 container is queueing time. Raw CSV files are in [`locust/results/`](locust/results/).
 
 ## Project structure
 
@@ -153,16 +155,26 @@ locust -f locust/locustfile.py --host http://localhost:8080
 bash locust/run_experiments.sh 50 60s
 ```
 
-### 4. Deploy to the cloud
+### 4. Deploy to the cloud (Azure Container Apps)
 
-The app is a single Docker image, so any container platform works. Retraining needs about 1.3 GB of RAM.
+The live app runs on **Azure Container Apps** (Azure for Students subscription) at https://bean-leaf-doctor.orangehill-b7ca103b.southafricanorth.azurecontainerapps.io.
 
-**Hugging Face Spaces (free, 16 GB RAM):**
-1. Create a new Space at huggingface.co/new-space and choose **Docker** (blank template).
-2. `git clone https://huggingface.co/spaces/<user>/bean-leaf-doctor`, copy this repository's files into it, and replace its `README.md` with [`deploy/huggingface_space_README.md`](deploy/huggingface_space_README.md) (it sets `app_port: 8000`).
-3. `git add . && git commit -m "Deploy" && git push`. The Space builds the Dockerfile and serves the UI.
+```bash
+az login
+az group create -n bean-leaf-rg -l southafricanorth
+az acr create -g bean-leaf-rg -n <registry> --sku Basic --admin-enabled true
+az acr login -n <registry>
+docker buildx build --platform linux/amd64 -t <registry>.azurecr.io/bean-leaf-api:v1 --push .
+az containerapp env create -n bean-leaf-env -g bean-leaf-rg -l southafricanorth
+az containerapp create -n bean-leaf-doctor -g bean-leaf-rg --environment bean-leaf-env \
+  --image <registry>.azurecr.io/bean-leaf-api:v1 --registry-server <registry>.azurecr.io \
+  --registry-username <user> --registry-password <password> \
+  --target-port 8000 --ingress external --cpu 2 --memory 4Gi --min-replicas 1 --max-replicas 1
+```
 
-**Render:** New → Blueprint → select this repository (uses [`render.yaml`](render.yaml)). Choose an instance with at least 2 GB RAM if you want retraining to run in the cloud.
+Scaling in the cloud: `az containerapp update -n bean-leaf-doctor -g bean-leaf-rg --max-replicas N`. With more than one replica, mount an Azure Files volume at `/app/models` and `/app/store` so all replicas share the retrained model and uploads, as `docker-compose.yml` does locally.
+
+Other options: [`render.yaml`](render.yaml) (Render Blueprint, at least 2 GB RAM for retraining) or a Hugging Face Docker Space ([`deploy/huggingface_space_README.md`](deploy/huggingface_space_README.md), requires HF PRO).
 
 ## API endpoints
 
