@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bean Leaf Doctor</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo">🌱</span>
+    <div>
+      <h1>Bean Leaf Doctor</h1>
+      <p class="sub">Bean leaf disease classifier · ML pipeline dashboard</p>
+    </div>
+  </div>
+  <div id="statusPill" class="pill">checking…</div>
+</header>
+
+<nav>
+  <button class="tab active" data-tab="dashboard">Dashboard</button>
+  <button class="tab" data-tab="predict">Predict</button>
+  <button class="tab" data-tab="insights">Visualizations</button>
+  <button class="tab" data-tab="retrain">Upload &amp; Retrain</button>
+</nav>
+
+<main>
+  <!-- DASHBOARD -->
+  <section id="dashboard" class="panel active">
+    <div class="tiles">
+      <div class="tile"><span class="k">Model up-time</span><span class="v" id="uptime">–</span><span class="h" id="container"></span></div>
+      <div class="tile"><span class="k">Model version</span><span class="v" id="version">–</span><span class="h" id="trainedAt"></span></div>
+      <div class="tile"><span class="k">Predictions served</span><span class="v" id="served">–</span><span class="h" id="avgLat"></span></div>
+      <div class="tile"><span class="k">Pending uploads</span><span class="v" id="pending">–</span><span class="h">images waiting for retraining</span></div>
+    </div>
+    <h2>Model performance on the held-out test set</h2>
+    <div class="tiles metrics" id="metricTiles"></div>
+    <div class="grid2">
+      <div class="card"><h3>Confusion matrix</h3><div id="cm"></div></div>
+      <div class="card"><h3>Per-class F1 / precision / recall</h3><div class="chartbox"><canvas id="perClassChart"></canvas></div></div>
+    </div>
+    <div class="card"><h3>Training history</h3><p class="muted">Accuracy per epoch. The dashed line marks the start of fine-tuning of the MobileNetV2 backbone.</p><div class="chartbox"><canvas id="historyChart"></canvas></div></div>
+  </section>
+
+  <!-- PREDICT -->
+  <section id="predict" class="panel">
+    <div class="grid2">
+      <div class="card">
+        <h3>Upload one bean leaf image</h3>
+        <label class="drop" id="predictDrop">
+          <input type="file" id="predictFile" accept="image/*">
+          <img id="preview" alt="" hidden>
+          <span id="dropText">Click or drop an image here (jpg / png)</span>
+        </label>
+        <button id="predictBtn" class="primary" disabled>Predict</button>
+      </div>
+      <div class="card" id="resultCard">
+        <h3>Prediction</h3>
+        <p class="muted" id="resultEmpty">The result will appear here.</p>
+        <div id="result" hidden>
+          <div class="result-label"><span class="swatch" id="resSwatch"></span><span id="resLabel"></span></div>
+          <p class="big" id="resConf"></p>
+          <div id="probBars"></div>
+          <p class="advice" id="resAdvice"></p>
+          <p class="muted small" id="resMeta"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSIGHTS -->
+  <section id="insights" class="panel">
+    <div class="legend" id="legend"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Class balance</h3>
+        <div class="chartbox"><canvas id="countChart"></canvas></div>
+        <p class="story"><b>Story:</b> the three classes are almost perfectly balanced (~390 images each), so the model is not biased toward one class and plain accuracy is a fair metric, though we also report macro F1, precision and recall.</p>
+      </div>
+      <div class="card">
+        <h3>Feature 1 – Greenness index</h3>
+        <div class="chartbox"><canvas id="greenChart"></canvas></div>
+        <p class="story" id="storyGreen"></p>
+      </div>
+      <div class="card">
+        <h3>Feature 2 – Lesion (brown/yellow) pixel ratio</h3>
+        <div class="chartbox"><canvas id="lesionChart"></canvas></div>
+        <p class="story" id="storyLesion"></p>
+      </div>
+      <div class="card">
+        <h3>Feature 3 – Texture (edge density)</h3>
+        <div class="chartbox"><canvas id="edgeChart"></canvas></div>
+        <p class="story" id="storyEdge"></p>
+      </div>
+      <div class="card">
+        <h3>Feature 4 – Mean colour channels</h3>
+        <div class="chartbox"><canvas id="rgbChart"></canvas></div>
+        <p class="story" id="storyRgb"></p>
+      </div>
+      <div class="card">
+        <h3>Feature 5 – Brightness distribution</h3>
+        <div class="chartbox"><canvas id="brightChart"></canvas></div>
+        <p class="story" id="storyBright"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- RETRAIN -->
+  <section id="retrain" class="panel">
+    <div class="grid2">
+      <div class="card">
+        <h3>1 · Upload bulk training data</h3>
+        <p class="muted">Select many images of the <b>same class</b>, choose the label and upload. Files are validated, resized to 224×224, saved to <code>data/uploads/</code> and recorded in the SQLite database.</p>
+        <label for="uploadLabel">Label</label>
+        <select id="uploadLabel">
+          <option value="angular_leaf_spot">angular_leaf_spot</option>
+          <option value="bean_rust">bean_rust</option>
+          <option value="healthy">healthy</option>
+        </select>
+        <label class="drop small-drop">
+          <input type="file" id="uploadFiles" accept="image/*" multiple>
+          <span id="uploadText">Click to choose multiple images</span>
+        </label>
+        <button id="uploadBtn" class="primary" disabled>Upload</button>
+        <p id="uploadMsg" class="msg"></p>
+      </div>
+      <div class="card">
+        <h3>2 · Trigger retraining</h3>
+        <p class="muted">Retraining loads the <b>current model as the pre-trained model</b>, fine-tunes it on the new uploads plus a replay sample of the original data, evaluates it on the test set and promotes it only if accuracy does not drop. It also starts automatically once <b id="threshold">–</b> new images are pending.</p>
+        <div class="pending" id="pendingBox"></div>
+        <button id="retrainBtn" class="primary">Retrain model</button>
+        <p id="retrainMsg" class="msg"></p>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Retraining runs</h3>
+      <div class="tablewrap"><table id="runsTable"><thead><tr><th>#</th><th>Trigger</th><th>Status</th><th>Started</th><th>Samples</th><th>New accuracy</th><th>F1</th><th>Promoted</th><th>Duration</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+</main>
+<footer>Yves Niyigena · Machine Learning Pipeline Summative · <a href="/docs">API docs</a></footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

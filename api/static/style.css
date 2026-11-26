@@ -1,0 +1,92 @@
+:root {
+  --bg: #f6f7f4; --surface: #ffffff; --border: #e2e5dd;
+  --text: #191919; --muted: #666666; --accent: #2f7d32; --accent-ink: #ffffff;
+  --c1: #257de0; --c2: #f47230; --c3: #00b894;
+  --good: #0a7a2a; --bad: #c62828; --grid: #ececec;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121412; --surface: #1b1e1b; --border: #2c312c;
+    --text: #efefef; --muted: #9c9c9c; --accent: #4caf50; --accent-ink: #0b0b0b;
+    --c1: #338ced; --c2: #e76624; --c3: #00a888;
+    --good: #5cc46a; --bad: #ef6b6b; --grid: #2a2a2a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121412; --surface: #1b1e1b; --border: #2c312c;
+  --text: #efefef; --muted: #9c9c9c; --accent: #4caf50; --accent-ink: #0b0b0b;
+  --c1: #338ced; --c2: #e76624; --c3: #00a888;
+  --good: #5cc46a; --bad: #ef6b6b; --grid: #2a2a2a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.45; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 24px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { font-size: 32px; }
+h1 { margin: 0; font-size: 20px; }
+h2 { font-size: 16px; margin: 28px 0 12px; }
+h3 { margin: 0 0 10px; font-size: 15px; }
+.sub, .muted { color: var(--muted); margin: 0; }
+.small { font-size: 12px; }
+.pill { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); font-size: 13px; }
+.pill.ok::before { content: "● "; color: var(--good); }
+.pill.down::before { content: "● "; color: var(--bad); }
+nav { display: flex; gap: 4px; padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tab { background: none; border: none; padding: 12px 14px; font: inherit; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+main { max-width: 1180px; margin: 0 auto; padding: 20px 24px 40px; }
+.panel { display: none; }
+.panel.active { display: block; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+.tile .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.tile .v { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tile .h { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-top: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-top: 16px; min-width: 0; }
+.grid2 > .card { margin-top: 0; }
+.chartbox { position: relative; height: 260px; }
+.story { font-size: 14px; margin: 12px 0 0; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 2px dashed var(--border); border-radius: 10px; min-height: 220px; padding: 12px; cursor: pointer; color: var(--muted); text-align: center; margin-bottom: 12px; }
+.drop.small-drop { min-height: 90px; margin-top: 12px; }
+.drop input { display: none; }
+.drop img { max-width: 100%; max-height: 260px; border-radius: 8px; }
+.drop.over { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border: none; border-radius: 8px; padding: 10px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+button.primary:disabled { opacity: .45; cursor: not-allowed; }
+select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; margin-top: 4px; }
+label[for] { font-size: 13px; color: var(--muted); display: block; margin-top: 12px; }
+.result-label { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 650; }
+.result-label .swatch { width: 16px; height: 16px; }
+.big { font-size: 15px; color: var(--muted); margin: 4px 0 14px; }
+.bar { display: grid; grid-template-columns: 150px 1fr 56px; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+.bar .track { background: var(--grid); border-radius: 4px; height: 12px; overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 0 4px 4px 0; }
+.bar .pct { text-align: right; font-variant-numeric: tabular-nums; }
+.advice { background: var(--bg); border-left: 3px solid var(--accent); padding: 10px 12px; border-radius: 6px; font-size: 14px; }
+.msg { font-size: 14px; min-height: 1.2em; }
+.msg.err { color: var(--bad); }
+.pending { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.pending div { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+.pending b { font-size: 18px; display: block; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; }
+.cm { display: grid; gap: 2px; font-size: 13px; }
+.cm div { padding: 10px 6px; text-align: center; border-radius: 4px; font-variant-numeric: tabular-nums; }
+.cm .hd { color: var(--muted); background: none; font-size: 12px; }
+footer { text-align: center; color: var(--muted); font-size: 13px; padding: 20px; }
+footer a { color: inherit; }
+code { font-size: 12px; }
+@media (max-width: 600px) {
+  header, nav, main { padding-left: 16px; padding-right: 16px; }
+  .grid2 { grid-template-columns: 1fr; }
+  .bar { grid-template-columns: 110px 1fr 48px; }
+}
