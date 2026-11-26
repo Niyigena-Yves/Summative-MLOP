@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Video demo** | https://www.bugufi.link/yLtSVk |
+| **Video demo (YouTube)** | https://www.youtube.com/watch?v=fVMrsglxL3Y |
 | **Live app (Azure)** | https://bean-leaf-doctor.orangehill-b7ca103b.southafricanorth.azurecontainerapps.io (API docs: [https://bean-leaf-doctor.orangehill-b7ca103b.southafricanorth.azurecontainerapps.io/docs](https://bean-leaf-doctor.orangehill-b7ca103b.southafricanorth.azurecontainerapps.io/docs)) |
 | **GitHub** | https://github.com/Niyigena-Yves/Summative-MLOP |
 
