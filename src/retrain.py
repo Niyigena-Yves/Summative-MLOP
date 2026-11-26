@@ -10,6 +10,7 @@ Triggers:
   * auto    - fires when pending uploads reach RETRAIN_THRESHOLD
 """
 import os
+import socket
 import threading
 import traceback
 
@@ -18,13 +19,19 @@ from src.preprocessing import CLASS_NAMES
 
 RETRAIN_THRESHOLD = int(os.environ.get("RETRAIN_THRESHOLD", 30))
 RETRAIN_EPOCHS = int(os.environ.get("RETRAIN_EPOCHS", 4))
+RETRAIN_BATCH = int(os.environ.get("RETRAIN_BATCH", 16))
+RETRAIN_REPLAY = int(os.environ.get("RETRAIN_REPLAY", 60))  # original images per class mixed in
+HOST = socket.gethostname()
 
-_state = {"running": False, "run_id": None, "last_result": None, "last_error": None}
+_state = {"last_result": None, "last_error": None}
 _lock = threading.Lock()
 
 
 def status():
-    return dict(_state, threshold=RETRAIN_THRESHOLD)
+    """Retraining status. 'running' comes from the database so every replica agrees."""
+    run = db.active_run()
+    return dict(_state, running=run is not None, run_id=run["id"] if run else None,
+                threshold=RETRAIN_THRESHOLD)
 
 
 def _run(trigger, run_id, uploads):
@@ -32,7 +39,8 @@ def _run(trigger, run_id, uploads):
     try:
         paths = [u["path"] for u in uploads]
         labels = [CLASS_NAMES.index(u["label"]) for u in uploads]
-        result = retrain(paths, labels, epochs=RETRAIN_EPOCHS, trigger=trigger)
+        result = retrain(paths, labels, epochs=RETRAIN_EPOCHS, batch_size=RETRAIN_BATCH,
+                         replay_per_class=RETRAIN_REPLAY, trigger=trigger)
         db.mark_used([u["id"] for u in uploads], run_id)
         db.finish_run(run_id, "completed", result=result)
         _state["last_result"] = result
@@ -40,21 +48,18 @@ def _run(trigger, run_id, uploads):
     except Exception as exc:  # noqa: BLE001 - surface any failure to the UI
         db.finish_run(run_id, "failed", error=str(exc))
         _state["last_error"] = f"{exc}\n{traceback.format_exc(limit=3)}"
-    finally:
-        _state["running"] = False
 
 
 def trigger_retraining(trigger="manual", background=True):
     """Start a retraining run on all pending uploads. Returns a status dict."""
     with _lock:
-        if _state["running"]:
+        if db.active_run():
             return {"started": False, "reason": "A retraining run is already in progress", **status()}
         uploads = [u for u in db.pending_uploads() if os.path.exists(u["path"])]
         if not uploads:
             return {"started": False, "reason": "No new uploaded data to retrain on. Upload images first.",
                     **status()}
-        run_id = db.start_run(trigger, len(uploads))
-        _state.update(running=True, run_id=run_id)
+        run_id = db.start_run(trigger, len(uploads), host=HOST)
     if background:
         threading.Thread(target=_run, args=(trigger, run_id, uploads), daemon=True).start()
     else:
@@ -64,6 +69,6 @@ def trigger_retraining(trigger="manual", background=True):
 
 def maybe_auto_trigger():
     """Automatic trigger: retrain once enough new labelled data has arrived."""
-    if db.upload_summary()["pending_total"] >= RETRAIN_THRESHOLD and not _state["running"]:
+    if db.upload_summary()["pending_total"] >= RETRAIN_THRESHOLD and not db.active_run():
         return trigger_retraining(trigger="auto")
     return None

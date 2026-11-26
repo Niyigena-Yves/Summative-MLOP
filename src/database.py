@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS training_runs (
     started_at TEXT NOT NULL,
     finished_at TEXT,
     n_samples INTEGER,
+    host TEXT,
     result TEXT,
     error TEXT
 );
@@ -62,6 +63,9 @@ def connect():
 def init_db():
     with connect() as c:
         c.executescript(SCHEMA)
+        cols = [r["name"] for r in c.execute("PRAGMA table_info(training_runs)")]
+        if "host" not in cols:
+            c.execute("ALTER TABLE training_runs ADD COLUMN host TEXT")
 
 
 def add_upload(filename, label, path):
@@ -95,11 +99,30 @@ def mark_used(upload_ids, run_id):
                       [(run_id, i) for i in upload_ids])
 
 
-def start_run(trigger, n_samples):
+def start_run(trigger, n_samples, host=None):
     with connect() as c:
-        cur = c.execute("INSERT INTO training_runs (trigger, status, started_at, n_samples) VALUES (?,?,?,?)",
-                        (trigger, "running", now(), n_samples))
+        cur = c.execute("INSERT INTO training_runs (trigger, status, started_at, n_samples, host) "
+                        "VALUES (?,?,?,?,?)", (trigger, "running", now(), n_samples, host))
         return cur.lastrowid
+
+
+def active_run(max_age_minutes=60):
+    """The retraining run currently in progress (shared by all replicas), if any."""
+    with connect() as c:
+        r = c.execute("SELECT * FROM training_runs WHERE status='running' ORDER BY id DESC LIMIT 1").fetchone()
+    if r is None:
+        return None
+    started = datetime.fromisoformat(r["started_at"])
+    if (datetime.now(timezone.utc) - started).total_seconds() > max_age_minutes * 60:
+        return None
+    return dict(r)
+
+
+def mark_interrupted(host):
+    """On startup, runs this container left in 'running' state were interrupted (crash/restart)."""
+    with connect() as c:
+        c.execute("UPDATE training_runs SET status='failed', finished_at=?, error=? "
+                  "WHERE status='running' AND host=?", (now(), "interrupted (container restarted)", host))
 
 
 def finish_run(run_id, status, result=None, error=None):

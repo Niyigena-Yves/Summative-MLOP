@@ -28,6 +28,7 @@ app = FastAPI(title="Bean Leaf Disease Classifier",
 @app.on_event("startup")
 def startup():
     db.init_db()
+    db.mark_interrupted(socket.gethostname())
     if os.path.exists(MODEL_PATH):
         get_predictor()._ensure_loaded()  # warm the model so the first request is fast
 
