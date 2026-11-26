@@ -1,0 +1,15 @@
+# Render Blueprint: New + > Blueprint > connect this GitHub repo
+services:
+  - type: web
+    name: bean-leaf-doctor
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: RETRAIN_THRESHOLD
+        value: "30"
+      - key: RETRAIN_EPOCHS
+        value: "3"
