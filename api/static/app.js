@@ -14,13 +14,17 @@ async function api(path, opts) {
 }
 
 // ---------- tabs ----------
-document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => {
+function openTab(name) {
+  const b = document.querySelector(`.tab[data-tab="${name}"]`);
+  if (!b) return;
   document.querySelectorAll(".tab, .panel").forEach((e) => e.classList.remove("active"));
   b.classList.add("active");
-  $(b.dataset.tab).classList.add("active");
-  if (b.dataset.tab === "insights" && !insightsLoaded) loadInsights();
-  if (b.dataset.tab === "retrain") loadRetrain();
-}));
+  $(name).classList.add("active");
+  history.replaceState(null, "", "#" + name);
+  if (name === "insights" && !insightsLoaded) loadInsights();
+  if (name === "retrain") loadRetrain();
+}
+document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => openTab(b.dataset.tab)));
 
 // ---------- chart defaults ----------
 function baseOpts(extra = {}) {
@@ -182,11 +186,11 @@ async function loadInsights() {
 
   const g = f.greenness, l = f.lesion_ratio, e = f.edge_density, b = f.brightness;
   const pct = (x) => (x * 100).toFixed(1) + "%";
-  $("storyGreen").innerHTML = `<b>Story:</b> healthy leaves have the highest greenness (${g.healthy.toFixed(1)}) versus ${g.bean_rust.toFixed(1)} for bean rust and ${g.angular_leaf_spot.toFixed(1)} for angular leaf spot. Disease destroys chlorophyll, so loss of green is a first, simple signal of infection.`;
-  $("storyLesion").innerHTML = `<b>Story:</b> diseased leaves carry more brown/yellow tissue (angular leaf spot ${pct(l.angular_leaf_spot)}, bean rust ${pct(l.bean_rust)}) than healthy ones (${pct(l.healthy)}). Lesion share separates sick from healthy, but the two diseases overlap, which is why the model needs shape and texture, not colour alone.`;
-  $("storyEdge").innerHTML = `<b>Story:</b> bean rust has the busiest texture (${e.bean_rust.toFixed(1)}) because it produces many tiny raised pustules, whereas angular leaf spot (${e.angular_leaf_spot.toFixed(1)}) forms fewer, larger angular patches and healthy leaves (${e.healthy.toFixed(1)}) are smoother. Texture is what lets the CNN tell the two diseases apart.`;
-  $("storyRgb").innerHTML = `<b>Story:</b> in all classes green is the dominant channel, but diseased leaves shift toward red (R ≈ ${f.mean_r.angular_leaf_spot.toFixed(0)} / ${f.mean_r.bean_rust.toFixed(0)} vs ${f.mean_r.healthy.toFixed(0)} for healthy). The red shift is the yellowing/browning a farmer would see.`;
-  $("storyBright").innerHTML = `<b>Story:</b> brightness overlaps heavily between classes (means ${b.angular_leaf_spot.toFixed(0)}, ${b.bean_rust.toFixed(0)}, ${b.healthy.toFixed(0)}). Photos were taken in the field under varied lighting, so brightness alone is not predictive; this is why we use contrast/brightness augmentation during training.`;
+  $("storyGreen").innerHTML = `<b>Story:</b> healthy leaves are the greenest (${g.healthy.toFixed(1)}), angular leaf spot is slightly lower (${g.angular_leaf_spot.toFixed(1)}) and bean rust drops sharply (${g.bean_rust.toFixed(1)}). Disease destroys chlorophyll; rust's dense reddish-brown pustules remove the most green, so greenness alone already flags many rust cases.`;
+  $("storyLesion").innerHTML = `<b>Story:</b> diseased leaves carry far more brown/yellow tissue than healthy ones: angular leaf spot ${pct(l.angular_leaf_spot)}, bean rust ${pct(l.bean_rust)} vs healthy ${pct(l.healthy)}. Lesion share is the clearest sick-vs-healthy signal, which is why healthy leaves are almost never confused with diseased ones by the model.`;
+  $("storyEdge").innerHTML = `<b>Story:</b> whole-image edge density is almost identical for all classes (${e.angular_leaf_spot.toFixed(1)}, ${e.bean_rust.toFixed(1)}, ${e.healthy.toFixed(1)}). Field photos contain leaf veins, soil and other leaves, so a global texture average hides the disease. The difference is <i>local</i> (tiny rust pustules vs larger angular patches), which is why a CNN with local convolution filters beats simple global features.`;
+  $("storyRgb").innerHTML = `<b>Story:</b> the green channel tells the story: it falls from ${f.mean_g.healthy.toFixed(0)} (healthy) to ${f.mean_g.angular_leaf_spot.toFixed(0)} (angular leaf spot) and ${f.mean_g.bean_rust.toFixed(0)} (bean rust), while red stays flat or rises (${f.mean_r.healthy.toFixed(0)} → ${f.mean_r.angular_leaf_spot.toFixed(0)} / ${f.mean_r.bean_rust.toFixed(0)}). The red-to-green balance shifts toward the yellow/brown a farmer would see.`;
+  $("storyBright").innerHTML = `<b>Story:</b> brightness overlaps heavily between classes (means ${b.angular_leaf_spot.toFixed(0)}, ${b.bean_rust.toFixed(0)}, ${b.healthy.toFixed(0)}); bean rust photos are only slightly darker. Photos were taken outdoors under varied light, so brightness is not a reliable cue, which is why we use contrast augmentation during training.`;
 }
 
 // ---------- upload & retrain ----------
@@ -240,4 +244,5 @@ async function loadRetrain() {
 }
 
 loadHealth(); loadModel();
+if (location.hash) openTab(location.hash.slice(1));
 setInterval(loadHealth, 5000);
