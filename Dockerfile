@@ -15,5 +15,9 @@ COPY models ./models
 COPY data/train ./data/train
 COPY data/test ./data/test
 
+# writable dirs for the database, uploads and retrained models
+# (cloud platforms such as Hugging Face Spaces run the container as a non-root user)
+RUN mkdir -p data/uploads models/archive store && chmod -R 777 data models store
+
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT} --workers 1"]
